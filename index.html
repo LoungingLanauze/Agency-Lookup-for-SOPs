@@ -280,7 +280,7 @@
   .empty-state{
     display:none;
     text-align:center;
-    padding:40px 20px;
+    padding:32px 24px;
     color:var(--ink-faint);
     font-size:14.5px;
     border:1.5px dashed var(--line-strong);
@@ -288,6 +288,69 @@
   }
   .empty-state.show{display:block;}
   .empty-state .big{font-size:15px; color:var(--ink-soft); margin:0 0 4px; font-weight:500;}
+
+  .suggest-box{
+    display:none;
+    margin-top:18px;
+    padding-top:18px;
+    border-top:1px solid var(--line);
+    text-align:left;
+  }
+  .suggest-box.show{display:block;}
+  .suggest-label{
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin:0 0 10px;
+  }
+  .suggest-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .suggest-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    background:var(--paper-raised);
+    border:1px solid var(--line-strong);
+    border-radius:var(--radius);
+    padding:11px 14px;
+    cursor:pointer;
+    font-family:inherit;
+    text-align:left;
+    width:100%;
+  }
+  .suggest-item:hover{
+    border-color:var(--focus);
+    background:var(--accent-soft);
+  }
+  .suggest-item-left{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    min-width:0;
+  }
+  .suggest-item-name{
+    font-size:14.5px;
+    font-weight:500;
+    color:var(--ink);
+  }
+  .suggest-item-group{
+    font-size:12px;
+    color:var(--ink-faint);
+  }
+
+  .unverified-note{
+    display:none;
+    font-size:13px;
+    color:var(--ink-faint);
+    margin:0 0 18px 2px;
+  }
+  .unverified-note.show{display:block;}
 
   footer{
     margin-top:44px;
@@ -395,9 +458,14 @@
   <div class="list" id="resultsList"></div>
 
   <div class="empty-state" id="emptyState">
-    <p class="big">No match found</p>
-    <p style="margin:0;">This agency isn't listed in the family tree. Treat it as <strong>not a partner</strong> and proceed with sales manager approval — feel free to double check with Dean if you're unsure.</p>
+    <p class="big" id="emptyStateTitle">No match found</p>
+    <p style="margin:0;" id="emptyStateBody">This agency isn't listed in the family tree. Treat it as <strong>not a partner</strong> and proceed with sales manager approval — feel free to double check with Dean if you're unsure.</p>
+    <div class="suggest-box" id="suggestBox"></div>
   </div>
+
+  <p class="unverified-note" id="unverifiedNote">
+    <i>You selected a close match — this is not the name you typed. Status shown is for the selected agency only.</i>
+  </p>
 
   <footer>
     <div class="legend">
@@ -426,6 +494,9 @@ const bannerHeadline = document.getElementById('bannerHeadline');
 const bannerDetail = document.getElementById('bannerDetail');
 const resultsList = document.getElementById('resultsList');
 const emptyState = document.getElementById('emptyState');
+const emptyStateBody = document.getElementById('emptyStateBody');
+const suggestBox = document.getElementById('suggestBox');
+const unverifiedNote = document.getElementById('unverifiedNote');
 const hintText = document.getElementById('hintText');
 const countText = document.getElementById('countText');
 const partnerGroupList = document.getElementById('partnerGroupList');
@@ -446,10 +517,55 @@ function highlight(name, query){
   return `${before}<mark>${match}</mark>${after}`;
 }
 
-function showBanner(agency){
+// Levenshtein edit distance — counts single-character insertions, deletions,
+// and substitutions needed to turn one string into another. Used only to
+// catch likely typos, never to silently decide a status.
+function levenshtein(a, b){
+  a = a.toLowerCase(); b = b.toLowerCase();
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m + 1}, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++){
+    for (let j = 1; j <= n; j++){
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+// Tuned against the full agency list: ratio <= 0.34 catches realistic
+// typos ("Ketcum"->"Ketchum", "Ogivly"->"Ogilvy", "Edelmann"->"Edelman")
+// while still excluding genuinely different agency names. This threshold
+// alone is not what protects against a wrong-status suggestion — the
+// protection is structural: ALL close candidates are always shown
+// together (never just the nearest one), so even when two agencies of
+// different partner status sit close in spelling (e.g. "PLUS
+// Communications" vs "We. Communications"), the tool surfaces both for
+// a manual pick rather than silently choosing one. A minimum query
+// length avoids false matches on short codes like "BBH" or "VML".
+const FUZZY_RATIO_THRESHOLD = 0.34;
+const FUZZY_MIN_QUERY_LENGTH = 4;
+const FUZZY_MAX_SUGGESTIONS = 6;
+
+function findFuzzyMatches(query){
+  if (query.length < FUZZY_MIN_QUERY_LENGTH) return [];
+  const scored = AGENCIES.map(a => {
+    const dist = levenshtein(query, a.name);
+    const maxLen = Math.max(query.length, a.name.length);
+    return { agency: a, ratio: dist / maxLen };
+  }).filter(s => s.ratio <= FUZZY_RATIO_THRESHOLD);
+  scored.sort((x, y) => x.ratio - y.ratio);
+  return scored.slice(0, FUZZY_MAX_SUGGESTIONS).map(s => s.agency);
+}
+
+function showBanner(agency, opts){
+  opts = opts || {};
   resultsList.classList.remove('show');
   emptyState.classList.remove('show');
   banner.classList.add('show');
+  unverifiedNote.classList.toggle('show', !!opts.fromSuggestion);
 
   bannerAgency.innerHTML = `${escapeHtml(agency.name)} <span class="matched-group">· ${escapeHtml(agency.group)}</span>`;
 
@@ -468,13 +584,30 @@ function showBanner(agency){
 
 function hideBanner(){
   banner.classList.remove('show');
+  unverifiedNote.classList.remove('show');
+}
+
+function bindSelectable(container, selector){
+  container.querySelectorAll(selector).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.getAttribute('data-name');
+      const agency = AGENCIES.find(a => a.name === name);
+      const fromSuggestion = btn.getAttribute('data-suggestion') === 'true';
+      input.value = agency.name;
+      resultsList.classList.remove('show');
+      emptyState.classList.remove('show');
+      showBanner(agency, { fromSuggestion });
+      clearBtn.classList.add('show');
+    });
+  });
 }
 
 function renderList(matches, query){
   banner.classList.remove('show');
+  unverifiedNote.classList.remove('show');
+
   if (matches.length === 0){
-    resultsList.classList.remove('show');
-    emptyState.classList.add('show');
+    renderEmptyWithSuggestions(query);
     return;
   }
   emptyState.classList.remove('show');
@@ -491,16 +624,43 @@ function renderList(matches, query){
     </button>
   `).join('');
 
-  resultsList.querySelectorAll('.list-item').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const name = btn.getAttribute('data-name');
-      const agency = AGENCIES.find(a => a.name === name);
-      input.value = agency.name;
-      resultsList.classList.remove('show');
-      showBanner(agency);
-      clearBtn.classList.add('show');
-    });
-  });
+  bindSelectable(resultsList, '.list-item');
+}
+
+function renderEmptyWithSuggestions(query){
+  resultsList.classList.remove('show');
+  emptyState.classList.add('show');
+
+  const suggestions = findFuzzyMatches(query);
+
+  if (suggestions.length === 0){
+    emptyStateBody.innerHTML = `This agency isn't listed in the family tree. Treat it as <strong>not a partner</strong> and proceed with sales manager approval — feel free to double check with Dean if you're unsure.`;
+    suggestBox.classList.remove('show');
+    suggestBox.innerHTML = '';
+    return;
+  }
+
+  emptyStateBody.innerHTML = `No exact match for "<strong>${escapeHtml(query)}</strong>". This name isn't in the family tree as typed — if it's a typo, confirm the correct agency below. Otherwise, treat it as <strong>not a partner</strong>.`;
+
+  suggestBox.classList.add('show');
+  suggestBox.innerHTML = `
+    <p class="suggest-label">Did you mean</p>
+    <div class="suggest-list">
+      ${suggestions.map(a => `
+        <button class="suggest-item" data-name="${escapeHtml(a.name)}" data-suggestion="true">
+          <span class="suggest-item-left">
+            <span class="suggest-item-name">${escapeHtml(a.name)}</span>
+            <span class="suggest-item-group">${escapeHtml(a.group)}</span>
+          </span>
+          <span class="tag ${a.isPartner ? 'tag-partner' : 'tag-other'}">
+            <span class="tag-dot"></span>${a.isPartner ? 'Partner' : 'Not partner'}
+          </span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  bindSelectable(suggestBox, '.suggest-item');
 }
 
 function runSearch(){
@@ -537,8 +697,14 @@ input.addEventListener('input', runSearch);
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter'){
     const query = input.value.trim().toLowerCase();
+    if (!query) return;
+    const exact = AGENCIES.find(a => a.name.toLowerCase() === query);
+    if (exact){ showBanner(exact); return; }
     const matches = AGENCIES.filter(a => a.name.toLowerCase().includes(query));
     if (matches.length >= 1) showBanner(matches[0]);
+    // If there are no substring matches, Enter does nothing further —
+    // the empty state with fuzzy suggestions (if any) is already visible
+    // from the input handler, and requires an explicit click to confirm.
   }
 });
 
