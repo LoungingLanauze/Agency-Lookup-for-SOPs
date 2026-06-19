@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agency Partner Lookup</title>
+<style>
+  :root{
+    --ink:#1c1d1a;
+    --ink-soft:#5b5d57;
+    --ink-faint:#8c8e87;
+    --paper:#faf9f5;
+    --paper-raised:#ffffff;
+    --line:#e4e2d9;
+    --line-strong:#cfccc0;
+    --accent:#0f6e56;
+    --accent-soft:#e1f5ee;
+    --accent-line:#9fe1cb;
+    --accent-text:#04342c;
+    --neutral-soft:#efeee8;
+    --neutral-line:#cfccc0;
+    --neutral-text:#444441;
+    --focus:#185fa5;
+    --radius:10px;
+    --radius-lg:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:48px 20px 80px;
+  }
+  .wrap{
+    width:100%;
+    max-width:640px;
+  }
+  header{
+    margin-bottom:32px;
+  }
+  .eyebrow{
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    font-weight:600;
+    margin:0 0 8px;
+  }
+  h1{
+    font-size:28px;
+    font-weight:600;
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  .sub{
+    font-size:15px;
+    color:var(--ink-soft);
+    margin:0;
+    line-height:1.5;
+  }
+
+  .search-shell{
+    position:relative;
+    margin-bottom:8px;
+  }
+  .search-icon{
+    position:absolute;
+    left:18px;
+    top:50%;
+    transform:translateY(-50%);
+    color:var(--ink-faint);
+    pointer-events:none;
+    font-size:19px;
+  }
+  input[type="text"]{
+    width:100%;
+    font-size:18px;
+    padding:18px 50px 18px 50px;
+    border:1.5px solid var(--line-strong);
+    border-radius:var(--radius-lg);
+    background:var(--paper-raised);
+    color:var(--ink);
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+    font-family:inherit;
+  }
+  input[type="text"]::placeholder{
+    color:var(--ink-faint);
+  }
+  input[type="text"]:focus{
+    border-color:var(--focus);
+    box-shadow:0 0 0 3px rgba(24,95,165,0.12);
+  }
+  .clear-btn{
+    position:absolute;
+    right:10px;
+    top:50%;
+    transform:translateY(-50%);
+    border:none;
+    background:transparent;
+    color:var(--ink-faint);
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:18px;
+    display:none;
+    align-items:center;
+    justify-content:center;
+  }
+  .clear-btn:hover{background:var(--neutral-soft);}
+  .clear-btn.show{display:flex;}
+
+  .hint-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:13px;
+    color:var(--ink-faint);
+    margin:10px 2px 28px;
+    min-height:18px;
+  }
+
+  /* Result banner */
+  .banner{
+    display:none;
+    border-radius:var(--radius-lg);
+    padding:22px 24px;
+    margin-bottom:18px;
+    border:1.5px solid;
+    animation:rise .18s ease;
+  }
+  .banner.show{display:block;}
+  @keyframes rise{
+    from{opacity:0; transform:translateY(4px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  .banner.is-partner{
+    background:var(--accent-soft);
+    border-color:var(--accent-line);
+  }
+  .banner.is-not-partner{
+    background:var(--neutral-soft);
+    border-color:var(--neutral-line);
+  }
+  .banner-top{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+  }
+  .banner-icon{
+    flex:none;
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+    font-weight:700;
+    margin-top:1px;
+  }
+  .is-partner .banner-icon{
+    background:var(--accent);
+    color:#fff;
+  }
+  .is-not-partner .banner-icon{
+    background:var(--ink-faint);
+    color:#fff;
+  }
+  .banner-body{flex:1; min-width:0;}
+  .banner-agency{
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin:0 0 4px;
+  }
+  .banner-agency .matched-group{
+    color:var(--ink-faint);
+    font-weight:500;
+  }
+  .banner-headline{
+    font-size:18px;
+    font-weight:600;
+    margin:0 0 6px;
+    line-height:1.35;
+  }
+  .is-partner .banner-headline{color:var(--accent-text);}
+  .is-not-partner .banner-headline{color:var(--neutral-text);}
+  .banner-detail{
+    font-size:14.5px;
+    line-height:1.55;
+    margin:0;
+  }
+  .is-partner .banner-detail{color:var(--accent-text);}
+  .is-not-partner .banner-detail{color:var(--neutral-text);}
+  .banner-detail strong{font-weight:600;}
+
+  /* Suggestion list (multi-match / browse) */
+  .list{
+    display:none;
+    flex-direction:column;
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:var(--radius-lg);
+    overflow:hidden;
+  }
+  .list.show{display:flex;}
+  .list-item{
+    background:var(--paper-raised);
+    padding:13px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    cursor:pointer;
+    border:none;
+    text-align:left;
+    width:100%;
+    font-family:inherit;
+    font-size:15px;
+  }
+  .list-item:hover{background:#f4f2ec;}
+  .list-item-name{
+    font-weight:500;
+    color:var(--ink);
+  }
+  .list-item-name mark{
+    background:#fde9b0;
+    color:inherit;
+    border-radius:3px;
+    padding:0 1px;
+  }
+  .list-item-group{
+    font-size:12.5px;
+    color:var(--ink-faint);
+    flex:none;
+    white-space:nowrap;
+  }
+  .tag{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-size:11px;
+    font-weight:600;
+    padding:3px 8px;
+    border-radius:20px;
+    flex:none;
+  }
+  .tag-partner{
+    background:var(--accent-soft);
+    color:var(--accent-text);
+  }
+  .tag-other{
+    background:var(--neutral-soft);
+    color:var(--neutral-text);
+  }
+  .tag-dot{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+  }
+  .tag-partner .tag-dot{background:var(--accent);}
+  .tag-other .tag-dot{background:var(--ink-faint);}
+
+  .empty-state{
+    display:none;
+    text-align:center;
+    padding:40px 20px;
+    color:var(--ink-faint);
+    font-size:14.5px;
+    border:1.5px dashed var(--line-strong);
+    border-radius:var(--radius-lg);
+  }
+  .empty-state.show{display:block;}
+  .empty-state .big{font-size:15px; color:var(--ink-soft); margin:0 0 4px; font-weight:500;}
+
+  footer{
+    margin-top:44px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+  }
+  .legend{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+  }
+  .legend-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .legend-dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    flex:none;
+  }
+  .legend-dot.partner{background:var(--accent);}
+  .legend-dot.other{background:var(--ink-faint);}
+
+  details{
+    font-size:13.5px;
+    color:var(--ink-soft);
+  }
+  summary{
+    cursor:pointer;
+    font-weight:500;
+    color:var(--ink-soft);
+    padding:4px 0;
+    list-style:none;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  summary::-webkit-details-marker{display:none;}
+  summary::before{
+    content:"›";
+    display:inline-block;
+    transition:transform .15s ease;
+    font-size:16px;
+  }
+  details[open] summary::before{transform:rotate(90deg);}
+  .partner-list{
+    margin:10px 0 0;
+    padding:0;
+    list-style:none;
+    columns:2;
+    column-gap:24px;
+    font-size:13px;
+    line-height:2;
+    color:var(--ink-soft);
+  }
+  @media (max-width:480px){
+    .partner-list{columns:1;}
+  }
+
+  @media (max-width:480px){
+    body{padding:32px 14px 60px;}
+    h1{font-size:24px;}
+    input[type="text"]{font-size:16px; padding:16px 44px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">SOPs quick check</p>
+    <h1>Agency partner lookup</h1>
+    <p class="sub">Search any agency name to check its partner status before opening an SOPs ticket. Based on the mediasense 2026 Global Agency Family Tree.</p>
+  </header>
+
+  <div class="search-shell">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="searchInput" placeholder="Type an agency name…" autocomplete="off" spellcheck="false">
+    <button class="clear-btn" id="clearBtn" aria-label="Clear search">✕</button>
+  </div>
+  <div class="hint-row">
+    <span id="hintText">Start typing to search 516 agencies</span>
+    <span id="countText"></span>
+  </div>
+
+  <div class="banner" id="banner">
+    <div class="banner-top">
+      <div class="banner-icon" id="bannerIcon">!</div>
+      <div class="banner-body">
+        <p class="banner-agency" id="bannerAgency"></p>
+        <p class="banner-headline" id="bannerHeadline"></p>
+        <p class="banner-detail" id="bannerDetail"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="list" id="resultsList"></div>
+
+  <div class="empty-state" id="emptyState">
+    <p class="big">No match found</p>
+    <p style="margin:0;">This agency isn't listed in the family tree. Treat it as <strong>not a partner</strong> and proceed with sales manager approval — feel free to double check with Dean if you're unsure.</p>
+  </div>
+
+  <footer>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot partner"></span>Signed partner — loop in Dean</div>
+      <div class="legend-item"><span class="legend-dot other"></span>Not a partner — sales manager approval</div>
+    </div>
+    <details>
+      <summary>View all 10 partner groups</summary>
+      <ul class="partner-list" id="partnerGroupList"></ul>
+    </details>
+  </footer>
+
+</div>
+
+<script>
+const AGENCIES = [{"name":"303","group":"Independent","isPartner":false},{"name":"55","group":"Independent","isPartner":false},{"name":"72andSunny","group":"Stagwell","isPartner":true},{"name":"Acceleration","group":"Independent","isPartner":false},{"name":"Accenture Song","group":"Accenture","isPartner":true},{"name":"Acxiom","group":"Omnicom","isPartner":true},{"name":"Adelphi","group":"Omnicom","isPartner":true},{"name":"Akcelo","group":"Independent","isPartner":false},{"name":"AKQA","group":"WPP","isPartner":true},{"name":"Aleph","group":"WPP","isPartner":true},{"name":"Allison","group":"Stagwell","isPartner":true},{"name":"alma","group":"Omnicom","isPartner":true},{"name":"Amnet","group":"Dentsu","isPartner":true},{"name":"amp","group":"WPP","isPartner":true},{"name":"Amplify","group":"Independent","isPartner":false},{"name":"Amsive","group":"Independent","isPartner":false},{"name":"anddigital","group":"Hakuhodo","isPartner":true},{"name":"Anomaly","group":"Stagwell","isPartner":true},{"name":"Ansira","group":"Independent","isPartner":false},{"name":"antoni","group":"Omnicom","isPartner":true},{"name":"AQuest","group":"WPP","isPartner":true},{"name":"Arc Worldwide","group":"Publicis Groupe","isPartner":true},{"name":"ArcTouch","group":"WPP","isPartner":true},{"name":"AREA 23","group":"Omnicom","isPartner":true},{"name":"Arena Media","group":"Havas","isPartner":true},{"name":"Ariadna","group":"Independent","isPartner":false},{"name":"Arnold","group":"Havas","isPartner":true},{"name":"Artefact","group":"Independent","isPartner":false},{"name":"Assembly","group":"Stagwell","isPartner":true},{"name":"Assembly Digital Commerce","group":"Stagwell","isPartner":true},{"name":"Atomic 212\u00b0","group":"Publicis Groupe","isPartner":true},{"name":"Auditoire","group":"Omnicom","isPartner":true},{"name":"Avalere Health","group":"Independent","isPartner":false},{"name":"Axicom","group":"WPP","isPartner":true},{"name":"Bader Rutter","group":"Independent","isPartner":false},{"name":"Barbarian","group":"Cheil","isPartner":false},{"name":"Barrows","group":"WPP","isPartner":true},{"name":"Battery","group":"Havas","isPartner":true},{"name":"BBDO","group":"Omnicom","isPartner":true},{"name":"BBH","group":"Publicis Groupe","isPartner":true},{"name":"Bcube","group":"Publicis Groupe","isPartner":true},{"name":"BDG","group":"WPP","isPartner":true},{"name":"Beacon Communications","group":"Publicis Groupe","isPartner":true},{"name":"Berlin Cameron","group":"WPP","isPartner":true},{"name":"BETC","group":"Havas","isPartner":true},{"name":"BETC Fullsix","group":"Havas","isPartner":true},{"name":"Billion Dollar Boy","group":"Independent","isPartner":false},{"name":"Biolumina","group":"Omnicom","isPartner":true},{"name":"Bizon","group":"Publicis Groupe","isPartner":true},{"name":"Blue 449","group":"Publicis Groupe","isPartner":true},{"name":"Blue Chip","group":"Independent","isPartner":false},{"name":"BMB","group":"Cheil","isPartner":false},{"name":"Boomerang","group":"Publicis Groupe","isPartner":true},{"name":"Bottle Rocket","group":"WPP","isPartner":true},{"name":"Bower House Digital","group":"WPP","isPartner":true},{"name":"BPG Group","group":"WPP","isPartner":true},{"name":"Brainlabs","group":"Independent","isPartner":false},{"name":"broadhead","group":"Independent","isPartner":false},{"name":"Brownstein","group":"Independent","isPartner":false},{"name":"Brunswick Group","group":"Independent","isPartner":false},{"name":"Burrell","group":"Independent","isPartner":false},{"name":"Burson","group":"WPP","isPartner":true},{"name":"Burson Buchanan","group":"WPP","isPartner":true},{"name":"Buzzman","group":"Havas","isPartner":true},{"name":"by The Network","group":"Independent","isPartner":false},{"name":"Cadent","group":"Independent","isPartner":false},{"name":"Canvas Worldwide","group":"Independent","isPartner":false},{"name":"Captiv8","group":"Publicis Groupe","isPartner":true},{"name":"Carat","group":"Dentsu","isPartner":true},{"name":"Carmichael Lynch","group":"Omnicom","isPartner":true},{"name":"Carr\u00e9 Noir","group":"Publicis Groupe","isPartner":true},{"name":"Cartwright","group":"WPP","isPartner":true},{"name":"CBA","group":"WPP","isPartner":true},{"name":"Channel Bakers","group":"Havas","isPartner":true},{"name":"Cheil","group":"Cheil","isPartner":false},{"name":"Cheil Centrade","group":"Cheil","isPartner":false},{"name":"Chime Communications","group":"Independent","isPartner":false},{"name":"choreograph","group":"WPP","isPartner":true},{"name":"Citizen Relations","group":"Independent","isPartner":false},{"name":"CJ Affiliate","group":"Publicis Groupe","isPartner":true},{"name":"Clarion Communications","group":"WPP","isPartner":true},{"name":"Clinch","group":"Independent","isPartner":false},{"name":"Clozette","group":"Independent","isPartner":false},{"name":"CMI Media Group","group":"WPP","isPartner":true},{"name":"Code and Theory","group":"Stagwell","isPartner":true},{"name":"Coffee & TV","group":"Omnicom","isPartner":true},{"name":"Coley Porter Bell","group":"WPP","isPartner":true},{"name":"Colle McVoy","group":"Stagwell","isPartner":true},{"name":"collectively","group":"Independent","isPartner":false},{"name":"ColourData","group":"Cheil","isPartner":false},{"name":"Conill Advertising","group":"Publicis Groupe","isPartner":true},{"name":"Consulum","group":"Stagwell","isPartner":true},{"name":"Contract Advertising","group":"WPP","isPartner":true},{"name":"Corebiz","group":"WPP","isPartner":true},{"name":"Corra","group":"Publicis Groupe","isPartner":true},{"name":"Cosmo5","group":"Independent","isPartner":false},{"name":"Cossette","group":"Independent","isPartner":false},{"name":"Cossette Media","group":"Independent","isPartner":false},{"name":"CPB","group":"Stagwell","isPartner":true},{"name":"Cramer-Krasselt","group":"Independent","isPartner":false},{"name":"Credera","group":"Omnicom","isPartner":true},{"name":"Crispin","group":"Stagwell","isPartner":true},{"name":"Critical Mass","group":"Omnicom","isPartner":true},{"name":"CRMOne","group":"Publicis Groupe","isPartner":true},{"name":"Croud","group":"Independent","isPartner":false},{"name":"CSA","group":"Havas","isPartner":true},{"name":"Curiosity","group":"Hakuhodo","isPartner":true},{"name":"D.A.Consortium","group":"Hakuhodo","isPartner":true},{"name":"Daiko Advertising","group":"Hakuhodo","isPartner":true},{"name":"DAVID","group":"WPP","isPartner":true},{"name":"Deloitte Digital","group":"Deloitte","isPartner":true},{"name":"Delve Deeper","group":"Independent","isPartner":false},{"name":"dentsu","group":"Dentsu","isPartner":true},{"name":"dentsu Creative","group":"Dentsu","isPartner":true},{"name":"dentsu X","group":"Dentsu","isPartner":true},{"name":"DEPT","group":"Independent","isPartner":false},{"name":"Derse","group":"Independent","isPartner":false},{"name":"Design Bridge and Partners","group":"WPP","isPartner":true},{"name":"Deutsch","group":"Omnicom","isPartner":true},{"name":"Dewey Square Group","group":"WPP","isPartner":true},{"name":"dieste","group":"Omnicom","isPartner":true},{"name":"Diff","group":"WPP","isPartner":true},{"name":"Digitas","group":"Publicis Groupe","isPartner":true},{"name":"Digitas Health","group":"Publicis Groupe","isPartner":true},{"name":"Digo","group":"Independent","isPartner":false},{"name":"Discovery","group":"Publicis Groupe","isPartner":true},{"name":"DNY","group":"Independent","isPartner":false},{"name":"Doner","group":"Stagwell","isPartner":true},{"name":"DonerNorth","group":"Stagwell","isPartner":true},{"name":"Downtown Paris","group":"Publicis Groupe","isPartner":true},{"name":"DPZ","group":"Publicis Groupe","isPartner":true},{"name":"Droga5","group":"Accenture","isPartner":true},{"name":"DRPG","group":"Independent","isPartner":false},{"name":"dti digital","group":"WPP","isPartner":true},{"name":"DWA","group":"Dentsu","isPartner":true},{"name":"Dysrupt","group":"Publicis Groupe","isPartner":true},{"name":"Dyversity Communications","group":"Stagwell","isPartner":true},{"name":"Edelman","group":"Edelman","isPartner":true},{"name":"Eicoff","group":"WPP","isPartner":true},{"name":"eight&four Group","group":"Independent","isPartner":false},{"name":"Ekino","group":"Havas","isPartner":true},{"name":"Emperor","group":"Independent","isPartner":false},{"name":"eNAV Marketing Services","group":"Hakuhodo","isPartner":true},{"name":"Enext Consulting","group":"WPP","isPartner":true},{"name":"Epsilon","group":"Publicis Groupe","isPartner":true},{"name":"EssenceMediacom","group":"WPP","isPartner":true},{"name":"Eversana Intouch","group":"Independent","isPartner":false},{"name":"Experience Commerce","group":"Cheil","isPartner":false},{"name":"Fallon","group":"Publicis Groupe","isPartner":true},{"name":"Fantasy","group":"Independent","isPartner":false},{"name":"Faze","group":"Havas","isPartner":true},{"name":"FCB Health","group":"Omnicom","isPartner":true},{"name":"FleishmanHillard","group":"Omnicom","isPartner":true},{"name":"Flywheel","group":"Omnicom","isPartner":true},{"name":"Folk VML","group":"WPP","isPartner":true},{"name":"Forsman & Bodenfors","group":"Stagwell","isPartner":true},{"name":"Foster","group":"WPP","isPartner":true},{"name":"FP1 Strategies","group":"Omnicom","isPartner":true},{"name":"Freeman","group":"Independent","isPartner":false},{"name":"FutureBrand","group":"Omnicom","isPartner":true},{"name":"Gain Theory","group":"WPP","isPartner":true},{"name":"GALE","group":"Stagwell","isPartner":true},{"name":"Gate One","group":"Havas","isPartner":true},{"name":"GCI Health","group":"WPP","isPartner":true},{"name":"George P. Johnson","group":"Independent","isPartner":false},{"name":"Giant Spoon","group":"Independent","isPartner":false},{"name":"GIMC-Hakuhodo","group":"Hakuhodo","isPartner":true},{"name":"Globant","group":"Independent","isPartner":false},{"name":"GMMB","group":"Omnicom","isPartner":true},{"name":"GMR","group":"Omnicom","isPartner":true},{"name":"Godfrey","group":"Independent","isPartner":false},{"name":"Gold Rabbit Sports","group":"Stagwell","isPartner":true},{"name":"Golin","group":"Omnicom","isPartner":true},{"name":"Good Apple","group":"Independent","isPartner":false},{"name":"Goodby Silverstein & Partners","group":"Omnicom","isPartner":true},{"name":"Goodstuff","group":"Stagwell","isPartner":true},{"name":"Gorilla","group":"Independent","isPartner":false},{"name":"Grabarz & Partner","group":"Omnicom","isPartner":true},{"name":"Gradial","group":"Independent","isPartner":false},{"name":"Gravity Road","group":"Independent","isPartner":false},{"name":"Green Park","group":"Independent","isPartner":false},{"name":"Grey","group":"WPP","isPartner":true},{"name":"GSD&M","group":"Omnicom","isPartner":true},{"name":"GSW","group":"Independent","isPartner":false},{"name":"GTB","group":"WPP","isPartner":true},{"name":"GUT","group":"Independent","isPartner":false},{"name":"Gyro","group":"Dentsu","isPartner":true},{"name":"H/Advisors","group":"Havas","isPartner":true},{"name":"Hakuhodo","group":"Hakuhodo","isPartner":true},{"name":"Hakuhodo DY ONE","group":"Hakuhodo","isPartner":true},{"name":"Hakuhodo Integrated Communications Group","group":"Hakuhodo","isPartner":true},{"name":"Harbor","group":"Publicis Groupe","isPartner":true},{"name":"Harris X","group":"Stagwell","isPartner":true},{"name":"Harte Hanks","group":"Independent","isPartner":false},{"name":"Havas","group":"Havas","isPartner":true},{"name":"Havas CX","group":"Havas","isPartner":true},{"name":"Havas Edge","group":"Havas","isPartner":true},{"name":"Havas Events","group":"Havas","isPartner":true},{"name":"Havas Formula","group":"Havas","isPartner":true},{"name":"Havas Fullsix","group":"Havas","isPartner":true},{"name":"Havas Life","group":"Havas","isPartner":true},{"name":"Havas Lynx","group":"Havas","isPartner":true},{"name":"Havas Market","group":"Havas","isPartner":true},{"name":"Havas Media","group":"Havas","isPartner":true},{"name":"Havas People","group":"Havas","isPartner":true},{"name":"Havas Play","group":"Havas","isPartner":true},{"name":"Havas Red","group":"Havas","isPartner":true},{"name":"Haygarth","group":"Omnicom","isPartner":true},{"name":"Health Media Hub","group":"Havas","isPartner":true},{"name":"Heartbeat","group":"Publicis Groupe","isPartner":true},{"name":"Hearts & Science","group":"Omnicom","isPartner":true},{"name":"Helia CX","group":"Havas","isPartner":true},{"name":"HelloWorld","group":"Dentsu","isPartner":true},{"name":"Highdive","group":"Independent","isPartner":false},{"name":"Hill & Knowlton","group":"WPP","isPartner":true},{"name":"Horizon Media","group":"Independent","isPartner":false},{"name":"Hudson Rouge","group":"WPP","isPartner":true},{"name":"Hunter","group":"Stagwell","isPartner":true},{"name":"IBM iX","group":"Independent","isPartner":false},{"name":"ICF Next","group":"Independent","isPartner":false},{"name":"Icon Group","group":"WPP","isPartner":true},{"name":"iCrossing","group":"Independent","isPartner":false},{"name":"ICUC","group":"Dentsu","isPartner":true},{"name":"Imagination","group":"Independent","isPartner":false},{"name":"Incentiv","group":"Publicis Groupe","isPartner":true},{"name":"Influential","group":"Publicis Groupe","isPartner":true},{"name":"INGO","group":"WPP","isPartner":true},{"name":"Initiative","group":"Omnicom","isPartner":true},{"name":"INK","group":"Stagwell","isPartner":true},{"name":"Innity Corporation","group":"Hakuhodo","isPartner":true},{"name":"INNOCEAN","group":"Independent","isPartner":false},{"name":"Instrument","group":"Stagwell","isPartner":true},{"name":"Intellignos","group":"Havas","isPartner":true},{"name":"Interbrand","group":"Omnicom","isPartner":true},{"name":"iProspect","group":"Dentsu","isPartner":true},{"name":"IREP","group":"Hakuhodo","isPartner":true},{"name":"Iris","group":"Cheil","isPartner":false},{"name":"isobel","group":"Independent","isPartner":false},{"name":"IZEA","group":"Independent","isPartner":false},{"name":"Jack Morton","group":"Independent","isPartner":false},{"name":"Jacques","group":"Havas","isPartner":true},{"name":"JeffreyGroup","group":"WPP","isPartner":true},{"name":"Jellyfish","group":"Independent","isPartner":false},{"name":"Jemini","group":"Stagwell","isPartner":true},{"name":"JetFuel","group":"Stagwell","isPartner":true},{"name":"Johannes Leonardo","group":"WPP","isPartner":true},{"name":"J\u00fcssi","group":"WPP","isPartner":true},{"name":"Kekst CNC","group":"Publicis Groupe","isPartner":true},{"name":"Kenna","group":"Stagwell","isPartner":true},{"name":"Ketchum","group":"Omnicom","isPartner":true},{"name":"Kettle","group":"Stagwell","isPartner":true},{"name":"Klick Health","group":"Independent","isPartner":false},{"name":"Landor","group":"WPP","isPartner":true},{"name":"Langland","group":"Publicis Groupe","isPartner":true},{"name":"LeapPoint","group":"Omnicom","isPartner":true},{"name":"Ledger Bennett","group":"Havas","isPartner":true},{"name":"Left Field Labs","group":"Stagwell","isPartner":true},{"name":"Leo","group":"Publicis Groupe","isPartner":true},{"name":"LePub","group":"Publicis Groupe","isPartner":true},{"name":"LeShop","group":"Publicis Groupe","isPartner":true},{"name":"Level Studios","group":"Publicis Groupe","isPartner":true},{"name":"LG2","group":"Independent","isPartner":false},{"name":"Lippe Taylor","group":"Independent","isPartner":false},{"name":"LiveArea","group":"Dentsu","isPartner":true},{"name":"LiveRamp","group":"Independent","isPartner":false},{"name":"Local Planet","group":"Independent","isPartner":false},{"name":"Locaria","group":"Stagwell","isPartner":true},{"name":"Lotame","group":"Publicis Groupe","isPartner":true},{"name":"Lucky Generals","group":"Omnicom","isPartner":true},{"name":"Luxine","group":"Stagwell","isPartner":true},{"name":"M+C Saatchi","group":"Independent","isPartner":false},{"name":"MA&TH Entertainment Network","group":"Hakuhodo","isPartner":true},{"name":"Made Thought","group":"WPP","isPartner":true},{"name":"Maison BETC","group":"Havas","isPartner":true},{"name":"Majority","group":"WPP","isPartner":true},{"name":"ManvsMachine","group":"WPP","isPartner":true},{"name":"Marcel","group":"Publicis Groupe","isPartner":true},{"name":"Marketdata","group":"WPP","isPartner":true},{"name":"Mars United Commerce","group":"Publicis Groupe","isPartner":true},{"name":"Match Marketing","group":"Independent","isPartner":false},{"name":"McCann","group":"Omnicom","isPartner":true},{"name":"McKinney","group":"Cheil","isPartner":false},{"name":"Meat & Produce","group":"Stagwell","isPartner":true},{"name":"MEDIA ENGINE","group":"Hakuhodo","isPartner":true},{"name":"Media Intelligence Group","group":"Hakuhodo","isPartner":true},{"name":"Mediahub","group":"Omnicom","isPartner":true},{"name":"Mediakeys","group":"Independent","isPartner":false},{"name":"Mediassociates","group":"Independent","isPartner":false},{"name":"Mekanism","group":"Independent","isPartner":false},{"name":"Mercury","group":"Omnicom","isPartner":true},{"name":"MERGE","group":"Independent","isPartner":false},{"name":"Merkle","group":"Dentsu","isPartner":true},{"name":"Merkle b2b","group":"Dentsu","isPartner":true},{"name":"Merkle Cardinal Path","group":"Dentsu","isPartner":true},{"name":"Merkley+Partners","group":"Omnicom","isPartner":true},{"name":"MetaDesign","group":"Publicis Groupe","isPartner":true},{"name":"Mindgruve","group":"Independent","isPartner":false},{"name":"Mindshare","group":"WPP","isPartner":true},{"name":"MKTG","group":"Dentsu","isPartner":true},{"name":"MKTG Sports & Entertainment","group":"Dentsu","isPartner":true},{"name":"MMC","group":"Omnicom","isPartner":true},{"name":"Mobkoi","group":"Independent","isPartner":false},{"name":"MOCEAN","group":"Independent","isPartner":false},{"name":"Momentum","group":"Omnicom","isPartner":true},{"name":"Monigle","group":"Independent","isPartner":false},{"name":"Monks","group":"Independent","isPartner":false},{"name":"Mono","group":"Stagwell","isPartner":true},{"name":"Moroch","group":"Independent","isPartner":false},{"name":"Mother","group":"Independent","isPartner":false},{"name":"Mother Tongue","group":"Omnicom","isPartner":true},{"name":"Movers+Shakers","group":"Stagwell","isPartner":true},{"name":"MSL","group":"Publicis Groupe","isPartner":true},{"name":"MSQ","group":"Independent","isPartner":false},{"name":"Multiview","group":"Stagwell","isPartner":true},{"name":"Munvo","group":"Independent","isPartner":false},{"name":"Mutato","group":"WPP","isPartner":true},{"name":"MuteSix","group":"Dentsu","isPartner":true},{"name":"National Research Group","group":"Stagwell","isPartner":true},{"name":"Neon","group":"Omnicom","isPartner":true},{"name":"New Commercial Arts","group":"WPP","isPartner":true},{"name":"Next 15 Group","group":"Independent","isPartner":false},{"name":"NO6","group":"Omnicom","isPartner":true},{"name":"Nurun","group":"Publicis Groupe","isPartner":true},{"name":"Obviously","group":"WPP","isPartner":true},{"name":"Octagon","group":"Omnicom","isPartner":true},{"name":"Odysseus Arms","group":"Independent","isPartner":false},{"name":"Ogilvy","group":"WPP","isPartner":true},{"name":"Ogilvy Consulting","group":"WPP","isPartner":true},{"name":"Ogilvy Health","group":"WPP","isPartner":true},{"name":"Ogilvy One","group":"WPP","isPartner":true},{"name":"Ogilvy PR","group":"WPP","isPartner":true},{"name":"Oliver","group":"Independent","isPartner":false},{"name":"OMD","group":"Omnicom","isPartner":true},{"name":"Omnicom Health Market Access","group":"Omnicom","isPartner":true},{"name":"Omnicom Health Medical Communications","group":"Omnicom","isPartner":true},{"name":"One Green Bean","group":"Havas","isPartner":true},{"name":"One RX","group":"Cheil","isPartner":false},{"name":"p-value Group","group":"Publicis Groupe","isPartner":true},{"name":"Pablo","group":"Independent","isPartner":false},{"name":"Paragon","group":"Dentsu","isPartner":true},{"name":"Partners + Napier","group":"Independent","isPartner":false},{"name":"Passport Brand Design","group":"WPP","isPartner":true},{"name":"Peclers Paris","group":"WPP","isPartner":true},{"name":"Pennywise","group":"WPP","isPartner":true},{"name":"pep","group":"WPP","isPartner":true},{"name":"Performics","group":"Publicis Groupe","isPartner":true},{"name":"PHD","group":"Omnicom","isPartner":true},{"name":"Picture Motion","group":"Publicis Groupe","isPartner":true},{"name":"PivotRoots","group":"Havas","isPartner":true},{"name":"PLUS Communications","group":"Omnicom","isPartner":true},{"name":"PMG","group":"Hakuhodo","isPartner":true},{"name":"Pmweb","group":"WPP","isPartner":true},{"name":"Porter Novelli","group":"Omnicom","isPartner":true},{"name":"Portland","group":"Omnicom","isPartner":true},{"name":"Posterscope","group":"Dentsu","isPartner":true},{"name":"Practia","group":"Publicis Groupe","isPartner":true},{"name":"Praytell","group":"Independent","isPartner":false},{"name":"Prodigious","group":"Publicis Groupe","isPartner":true},{"name":"Profitero+","group":"Publicis Groupe","isPartner":true},{"name":"Project Worldwide","group":"Independent","isPartner":false},{"name":"Propeg","group":"Independent","isPartner":false},{"name":"Propelis","group":"Independent","isPartner":false},{"name":"Propeller","group":"Omnicom","isPartner":true},{"name":"Prose on Pixels","group":"Havas","isPartner":true},{"name":"Publicis","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Collective","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Conseil","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Health","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Health Media","group":"Publicis Groupe","isPartner":true},{"name":"Publicis JimenezBasic","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Luxe","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Machine","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Media Connect","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Media Exchange","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Media Luxe","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Pro","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Pro (Digital Experience)","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Sapient","group":"Publicis Groupe","isPartner":true},{"name":"Publicis Sport & Entertainment","group":"Publicis Groupe","isPartner":true},{"name":"PublicisLive","group":"Publicis Groupe","isPartner":true},{"name":"PwC Digital Services","group":"Independent","isPartner":false},{"name":"R/GA","group":"Independent","isPartner":false},{"name":"RAPP","group":"Omnicom","isPartner":true},{"name":"Razorfish","group":"Publicis Groupe","isPartner":true},{"name":"Razorfish Health","group":"Publicis Groupe","isPartner":true},{"name":"Real Chemistry","group":"Independent","isPartner":false},{"name":"Redscout","group":"Stagwell","isPartner":true},{"name":"REMEDY EDGE","group":"Omnicom","isPartner":true},{"name":"Reply","group":"Independent","isPartner":false},{"name":"Republica Havas","group":"Havas","isPartner":true},{"name":"Republica Havas Health","group":"Havas","isPartner":true},{"name":"Rhythm","group":"Stagwell","isPartner":true},{"name":"Rosa Paris","group":"Havas","isPartner":true},{"name":"RPA","group":"Independent","isPartner":false},{"name":"Saatchi & Saatchi","group":"Publicis Groupe","isPartner":true},{"name":"Saatchi & Saatchi X","group":"Publicis Groupe","isPartner":true},{"name":"Saatchi Health","group":"Publicis Groupe","isPartner":true},{"name":"Salterbaxter MSL","group":"Publicis Groupe","isPartner":true},{"name":"Samy","group":"Independent","isPartner":false},{"name":"Satalia","group":"WPP","isPartner":true},{"name":"Scholz & Friends Family","group":"WPP","isPartner":true},{"name":"Serviceplan","group":"Independent","isPartner":false},{"name":"Set Creative","group":"WPP","isPartner":true},{"name":"Shobiz","group":"Havas","isPartner":true},{"name":"Sideshow Group","group":"Independent","isPartner":false},{"name":"Siegel+Gale","group":"Omnicom","isPartner":true},{"name":"SJR","group":"WPP","isPartner":true},{"name":"SKDK","group":"Stagwell","isPartner":true},{"name":"Sloane","group":"Stagwell","isPartner":true},{"name":"SMG","group":"Dentsu","isPartner":true},{"name":"Smollan","group":"WPP","isPartner":true},{"name":"Snow Companies","group":"Omnicom","isPartner":true},{"name":"SO Technologies","group":"Hakuhodo","isPartner":true},{"name":"Social Beat","group":"Cheil","isPartner":false},{"name":"Social.Lab","group":"WPP","isPartner":true},{"name":"Socialyse","group":"Havas","isPartner":true},{"name":"Sokrati","group":"Dentsu","isPartner":true},{"name":"SoldOut","group":"Hakuhodo","isPartner":true},{"name":"Southpaw Communications","group":"Hakuhodo","isPartner":true},{"name":"Spafax","group":"WPP","isPartner":true},{"name":"Spark Foundry","group":"Publicis Groupe","isPartner":true},{"name":"spicebox","group":"Hakuhodo","isPartner":true},{"name":"Spinnaker","group":"Publicis Groupe","isPartner":true},{"name":"Starcom","group":"Publicis Groupe","isPartner":true},{"name":"Sterling Brands","group":"Omnicom","isPartner":true},{"name":"Studio Rx","group":"Omnicom","isPartner":true},{"name":"Syneos Health","group":"Independent","isPartner":false},{"name":"SYZYGY GROUP","group":"WPP","isPartner":true},{"name":"T&P","group":"WPP","isPartner":true},{"name":"t2\u00f3","group":"Independent","isPartner":false},{"name":"Tadiem","group":"Independent","isPartner":false},{"name":"TAG","group":"Dentsu","isPartner":true},{"name":"Talent Marcel","group":"Publicis Groupe","isPartner":true},{"name":"Tank","group":"WPP","isPartner":true},{"name":"Targetbase","group":"Omnicom","isPartner":true},{"name":"Targeted Victory","group":"Stagwell","isPartner":true},{"name":"TAXI","group":"WPP","isPartner":true},{"name":"TBWA\\","group":"Omnicom","isPartner":true},{"name":"TEAM","group":"Stagwell","isPartner":true},{"name":"TEAM LEWIS","group":"Independent","isPartner":false},{"name":"Team One","group":"Publicis Groupe","isPartner":true},{"name":"The Brand Power Company","group":"WPP","isPartner":true},{"name":"The Capel Group","group":"Independent","isPartner":false},{"name":"The Cocktail","group":"WPP","isPartner":true},{"name":"The Community","group":"Publicis Groupe","isPartner":true},{"name":"The Creative Counsel","group":"Publicis Groupe","isPartner":true},{"name":"The Food Group","group":"WPP","isPartner":true},{"name":"The Goat Agency","group":"WPP","isPartner":true},{"name":"The Harris Poll","group":"Stagwell","isPartner":true},{"name":"The Joy Agency","group":"Hakuhodo","isPartner":true},{"name":"The Lacek Group","group":"WPP","isPartner":true},{"name":"The Marketing Cloud","group":"Stagwell","isPartner":true},{"name":"The Marketing Store","group":"Independent","isPartner":false},{"name":"The Martin Agency","group":"Omnicom","isPartner":true},{"name":"The Opus Group","group":"Independent","isPartner":false},{"name":"The Shipyard","group":"Independent","isPartner":false},{"name":"The Story Lab","group":"Dentsu","isPartner":true},{"name":"Think Design","group":"Havas","isPartner":true},{"name":"thjnk","group":"WPP","isPartner":true},{"name":"tigerbond","group":"Independent","isPartner":false},{"name":"Tinsel","group":"Stagwell","isPartner":true},{"name":"TIPi Group","group":"Independent","isPartner":false},{"name":"TMA","group":"Omnicom","isPartner":true},{"name":"tmp","group":"Independent","isPartner":false},{"name":"Tombras","group":"Independent","isPartner":false},{"name":"Townhouse","group":"WPP","isPartner":true},{"name":"Tquila","group":"Publicis Groupe","isPartner":true},{"name":"Traction","group":"Havas","isPartner":true},{"name":"Tracy-Locke","group":"Omnicom","isPartner":true},{"name":"TradeX Partners","group":"Stagwell","isPartner":true},{"name":"Transmission","group":"Independent","isPartner":false},{"name":"Tremend","group":"Publicis Groupe","isPartner":true},{"name":"TRG","group":"Independent","isPartner":false},{"name":"TRIPTK","group":"Havas","isPartner":true},{"name":"TrueLogic","group":"Stagwell","isPartner":true},{"name":"Turner Duckworth","group":"Publicis Groupe","isPartner":true},{"name":"UM","group":"Omnicom","isPartner":true},{"name":"Uncommon","group":"Havas","isPartner":true},{"name":"Underground","group":"Stagwell","isPartner":true},{"name":"Unicepta","group":"Stagwell","isPartner":true},{"name":"Unreasonable Studios","group":"Stagwell","isPartner":true},{"name":"USIM","group":"Independent","isPartner":false},{"name":"UWG","group":"WPP","isPartner":true},{"name":"Valtech","group":"Independent","isPartner":false},{"name":"VaynerX","group":"Independent","isPartner":false},{"name":"VCCP","group":"Independent","isPartner":false},{"name":"Veritas","group":"Stagwell","isPartner":true},{"name":"Verticurl","group":"WPP","isPartner":true},{"name":"Village Marketing","group":"WPP","isPartner":true},{"name":"Vitro","group":"Stagwell","isPartner":true},{"name":"VML","group":"WPP","isPartner":true},{"name":"VML Consulting","group":"WPP","isPartner":true},{"name":"VML Live","group":"WPP","isPartner":true},{"name":"W Conran","group":"Havas","isPartner":true},{"name":"Wavemaker","group":"WPP","isPartner":true},{"name":"We Are Social","group":"Independent","isPartner":false},{"name":"We. Communications","group":"Independent","isPartner":false},{"name":"Weber Shandwick","group":"Omnicom","isPartner":true},{"name":"Welcomm Publicis","group":"Publicis Groupe","isPartner":true},{"name":"Wellcom Worldwide","group":"Independent","isPartner":false},{"name":"Whalar","group":"Independent","isPartner":false},{"name":"What's Next Partners","group":"Stagwell","isPartner":true},{"name":"Wieden+Kennedy","group":"Independent","isPartner":false},{"name":"Wolff Olins","group":"Omnicom","isPartner":true},{"name":"WPP Government & Public Sector","group":"WPP","isPartner":true},{"name":"WPP Media","group":"WPP","isPartner":true},{"name":"WPP Production","group":"WPP","isPartner":true},{"name":"WPP Sports","group":"WPP","isPartner":true},{"name":"Wpromote","group":"Independent","isPartner":false},{"name":"Yamamoto","group":"Stagwell","isPartner":true},{"name":"YOMIKO Advertising","group":"Hakuhodo","isPartner":true},{"name":"Zag","group":"Publicis Groupe","isPartner":true},{"name":"Zambezi","group":"Independent","isPartner":false},{"name":"Zenith","group":"Publicis Groupe","isPartner":true},{"name":"Zimmerman Advertising","group":"Omnicom","isPartner":true},{"name":"Zubi","group":"WPP","isPartner":true}];
+
+const PARTNER_GROUPS = [...new Set(AGENCIES.filter(a => a.isPartner).map(a => a.group))].sort();
+
+const input = document.getElementById('searchInput');
+const clearBtn = document.getElementById('clearBtn');
+const banner = document.getElementById('banner');
+const bannerIcon = document.getElementById('bannerIcon');
+const bannerAgency = document.getElementById('bannerAgency');
+const bannerHeadline = document.getElementById('bannerHeadline');
+const bannerDetail = document.getElementById('bannerDetail');
+const resultsList = document.getElementById('resultsList');
+const emptyState = document.getElementById('emptyState');
+const hintText = document.getElementById('hintText');
+const countText = document.getElementById('countText');
+const partnerGroupList = document.getElementById('partnerGroupList');
+
+partnerGroupList.innerHTML = PARTNER_GROUPS.map(g => `<li>${escapeHtml(g)}</li>`).join('');
+countText.textContent = AGENCIES.length + ' agencies indexed';
+
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function highlight(name, query){
+  const idx = name.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return escapeHtml(name);
+  const before = escapeHtml(name.slice(0, idx));
+  const match = escapeHtml(name.slice(idx, idx + query.length));
+  const after = escapeHtml(name.slice(idx + query.length));
+  return `${before}<mark>${match}</mark>${after}`;
+}
+
+function showBanner(agency){
+  resultsList.classList.remove('show');
+  emptyState.classList.remove('show');
+  banner.classList.add('show');
+
+  bannerAgency.innerHTML = `${escapeHtml(agency.name)} <span class="matched-group">· ${escapeHtml(agency.group)}</span>`;
+
+  if (agency.isPartner){
+    banner.className = 'banner show is-partner';
+    bannerIcon.textContent = '✓';
+    bannerHeadline.textContent = 'Signed partner';
+    bannerDetail.innerHTML = '<strong>Include Dean in the SOPs ticket</strong> for review and approval.';
+  } else {
+    banner.className = 'banner show is-not-partner';
+    bannerIcon.textContent = '–';
+    bannerHeadline.textContent = 'Not a partner';
+    bannerDetail.innerHTML = 'Proceed with <strong>sales manager approval</strong>.';
+  }
+}
+
+function hideBanner(){
+  banner.classList.remove('show');
+}
+
+function renderList(matches, query){
+  banner.classList.remove('show');
+  if (matches.length === 0){
+    resultsList.classList.remove('show');
+    emptyState.classList.add('show');
+    return;
+  }
+  emptyState.classList.remove('show');
+  resultsList.classList.add('show');
+  resultsList.innerHTML = matches.slice(0, 30).map(a => `
+    <button class="list-item" data-name="${escapeHtml(a.name)}">
+      <span class="list-item-name">${highlight(a.name, query)}</span>
+      <span style="display:flex; align-items:center; gap:10px;">
+        <span class="list-item-group">${escapeHtml(a.group)}</span>
+        <span class="tag ${a.isPartner ? 'tag-partner' : 'tag-other'}">
+          <span class="tag-dot"></span>${a.isPartner ? 'Partner' : 'Not partner'}
+        </span>
+      </span>
+    </button>
+  `).join('');
+
+  resultsList.querySelectorAll('.list-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.getAttribute('data-name');
+      const agency = AGENCIES.find(a => a.name === name);
+      input.value = agency.name;
+      resultsList.classList.remove('show');
+      showBanner(agency);
+      clearBtn.classList.add('show');
+    });
+  });
+}
+
+function runSearch(){
+  const query = input.value.trim();
+  clearBtn.classList.toggle('show', query.length > 0);
+
+  if (query.length === 0){
+    hideBanner();
+    resultsList.classList.remove('show');
+    emptyState.classList.remove('show');
+    hintText.textContent = 'Start typing to search ' + AGENCIES.length + ' agencies';
+    return;
+  }
+
+  hintText.textContent = 'Press a result to confirm, or keep typing';
+
+  const exact = AGENCIES.find(a => a.name.toLowerCase() === query.toLowerCase());
+  if (exact){
+    showBanner(exact);
+    return;
+  }
+
+  const matches = AGENCIES.filter(a => a.name.toLowerCase().includes(query.toLowerCase()));
+
+  if (matches.length === 1){
+    showBanner(matches[0]);
+    return;
+  }
+
+  renderList(matches, query);
+}
+
+input.addEventListener('input', runSearch);
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter'){
+    const query = input.value.trim().toLowerCase();
+    const matches = AGENCIES.filter(a => a.name.toLowerCase().includes(query));
+    if (matches.length >= 1) showBanner(matches[0]);
+  }
+});
+
+clearBtn.addEventListener('click', () => {
+  input.value = '';
+  input.focus();
+  runSearch();
+});
+
+input.focus();
+</script>
+</body>
+</html>
