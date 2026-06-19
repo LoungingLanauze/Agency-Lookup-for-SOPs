@@ -469,7 +469,7 @@
 
   <footer>
     <div class="legend">
-      <div class="legend-item"><span class="legend-dot partner"></span>Signed partner — loop in Dean</div>
+      <div class="legend-item"><span class="legend-dot partner"></span>Signed partner — loop in Dean (Yoko for Dentsu/Hakuhodo)</div>
       <div class="legend-item"><span class="legend-dot other"></span>Not a partner — sales manager approval</div>
     </div>
     <details>
@@ -560,6 +560,13 @@ function findFuzzyMatches(query){
   return scored.slice(0, FUZZY_MAX_SUGGESTIONS).map(s => s.agency);
 }
 
+// Groups whose partner SOPs ticket should loop in Yoko instead of Dean.
+const YOKO_GROUPS = new Set(['Dentsu', 'Hakuhodo']);
+
+function reviewerFor(agency){
+  return YOKO_GROUPS.has(agency.group) ? 'Yoko' : 'Dean';
+}
+
 function showBanner(agency, opts){
   opts = opts || {};
   resultsList.classList.remove('show');
@@ -570,10 +577,11 @@ function showBanner(agency, opts){
   bannerAgency.innerHTML = `${escapeHtml(agency.name)} <span class="matched-group">· ${escapeHtml(agency.group)}</span>`;
 
   if (agency.isPartner){
+    const reviewer = reviewerFor(agency);
     banner.className = 'banner show is-partner';
     bannerIcon.textContent = '✓';
     bannerHeadline.textContent = 'Signed partner';
-    bannerDetail.innerHTML = '<strong>Include Dean in the SOPs ticket</strong> for review and approval.';
+    bannerDetail.innerHTML = `<strong>Include ${reviewer} in the SOPs ticket</strong> for review and approval.`;
   } else {
     banner.className = 'banner show is-not-partner';
     bannerIcon.textContent = '–';
